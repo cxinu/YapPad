@@ -12,7 +12,47 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
+
+var (
+	style = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("255")).
+		Background(lipgloss.Color("161")).
+		Width(60).
+		Align(lipgloss.Center)
+
+	cursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("111"))
+
+	cursorLineStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("38"))
+
+	promptStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("141"))
+
+	vaultDir string
+	docStyle = lipgloss.NewStyle().Margin(1, 2)
+)
+
+type keyMap struct {
+	Quit key.Binding
+	New  key.Binding
+	List key.Binding
+	Save key.Binding
+	Back key.Binding
+}
+
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.New, k.List, k.Save, k.Back, k.Quit}
+}
+
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.New, k.List, k.Save},
+		{k.Back, k.Quit},
+	}
+}
 
 func init() {
 	homeDir, err := os.UserHomeDir()
@@ -58,14 +98,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Global keybindings
 		switch {
+		// Quit Keybind
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
 
+		// New file Keybind
 		case key.Matches(msg, m.keys.New):
 			m.createFileInputVisible = true
 			m.newFileInput.Focus()
 			return m, nil
-
+		// Save file keybind
 		case key.Matches(msg, m.keys.Save):
 			if m.currentFile == nil {
 				break
@@ -92,13 +134,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.noteTextArea.SetValue("")
 			return m, nil
 
+		// List files keybind
 		case key.Matches(msg, m.keys.List):
 			noteList := listFiles()
 			m.list.SetItems(noteList)
 			m.showingList = true
 			return m, nil
+
+		// Go back keybind
+		case key.Matches(msg, m.keys.Back):
+			if m.createFileInputVisible {
+				m.createFileInputVisible = false
+			}
+
+			if m.currentFile != nil {
+				m.newFileInput.SetValue("")
+				m.currentFile = nil
+			}
+
+			if m.showingList {
+				if m.list.FilterState() == list.Filtering {
+					break
+				}
+				m.showingList = false
+			}
+
+			return m, nil
 		}
 
+		// Seperate handling for enter key when list is shown
 		if m.showingList {
 			switch msg.String() {
 			case "enter":
