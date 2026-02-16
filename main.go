@@ -39,17 +39,16 @@ type keyMap struct {
 	Back   key.Binding
 	Delete key.Binding
 	Rename key.Binding
-	Help   key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.New, k.List, k.Save, k.Delete, k.Rename, k.Help, k.Quit}
+	return []key.Binding{k.New, k.List, k.Save, k.Delete, k.Rename, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.New, k.List, k.Save, k.Delete, k.Rename},
-		{k.Back, k.Help, k.Quit},
+		{k.New, k.List, k.Save, k.Delete},
+		{k.Rename, k.Back, k.Quit},
 	}
 }
 
@@ -68,6 +67,7 @@ type model struct {
 	createFileInputVisible bool
 	currentFile            *os.File
 	noteTextArea           textarea.Model
+	noteTextAreaVisible    bool
 	list                   list.Model
 	showingList            bool
 	renameMode             bool
@@ -102,12 +102,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
 
-		case key.Matches(msg, m.keys.Help):
-			m.help.ShowAll = !m.help.ShowAll
-			return m, nil
-
 		case key.Matches(msg, m.keys.New):
 			m.createFileInputVisible = true
+			m.showingList = false
 			m.newFileInput.Focus()
 			return m, nil
 
@@ -127,6 +124,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.currentFile.Close()
 			m.currentFile = nil
 			m.noteTextArea.SetValue("")
+			m.list.SetItems(listFiles())
+			m.showingList = true
 			return m, nil
 
 		case key.Matches(msg, m.keys.List):
@@ -135,11 +134,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.Back):
+			// If we're in list view, go back to clean state
+			if m.showingList {
+				m.showingList = false
+				if m.currentFile != nil {
+					m.currentFile.Close()
+					m.currentFile = nil
+					m.noteTextArea.SetValue("")
+				}
+				return m, nil
+			}
+
+			if m.currentFile != nil {
+				if err := m.currentFile.Truncate(0); err == nil {
+					if _, err := m.currentFile.Seek(0, 0); err == nil {
+						m.currentFile.WriteString(m.noteTextArea.Value())
+					}
+				}
+				m.currentFile.Close()
+				m.currentFile = nil
+				m.noteTextArea.SetValue("")
+				m.list.SetItems(listFiles())
+				m.showingList = true
+				return m, nil
+			}
+
 			m.createFileInputVisible = false
 			m.renameMode = false
 			m.newFileInput.Blur()
 			m.newFileInput.SetValue("")
-			m.showingList = false
 			return m, nil
 
 		case key.Matches(msg, m.keys.Delete):
@@ -232,8 +255,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				m.currentFile = f
 				m.createFileInputVisible = false
+				m.showingList = false
 				m.newFileInput.Blur()
 				m.newFileInput.SetValue("")
+				m.noteTextArea.Focus()
 				return m, nil
 
 			case "esc":
@@ -295,7 +320,6 @@ func initialModel() model {
 		Back:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back ➜]")),
 		Delete: key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("ctrl+d", "delete ✖")),
 		Rename: key.NewBinding(key.WithKeys("ctrl+r"), key.WithHelp("ctrl+r", "rename ✎")),
-		Help:   key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "toggle help")),
 	}
 
 	ti := textinput.New()
@@ -315,12 +339,16 @@ func initialModel() model {
 	finalList := list.New(noteList, list.NewDefaultDelegate(), 0, 0)
 	finalList.Title = "All Notes"
 
+	helpModel := help.New()
+	helpModel.ShowAll = true // Always show full help in columns
+
 	return model{
 		keys:         keys,
 		newFileInput: ti,
 		noteTextArea: ta,
-		help:         help.New(),
+		help:         helpModel,
 		list:         finalList,
+		showingList:  true, // Start with list view by default
 	}
 }
 
