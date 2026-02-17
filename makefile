@@ -1,14 +1,15 @@
 .PHONY: build run install uninstall clean
 
 build:
-	go build -o yap main.go
+	mkdir -p build/
+	go build -o build/yap main.go
 
 run:
 	go run main.go
 
 install: build
 	mkdir -p ~/.local/bin
-	cp yap ~/.local/bin/
+	cp build/yap ~/.local/bin/
 	chmod +x ~/.local/bin/yap
 	@echo "✓ YapPad installed successfully!"
 	@echo "Run 'yap' from anywhere to start taking notes."
@@ -22,5 +23,5 @@ uninstall:
 	@echo "✓ YapPad uninstalled."
 
 clean:
-	rm -f yap
+	rm -rf build/
 	@echo "✓ Build artifacts cleaned."
