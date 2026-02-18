@@ -8,6 +8,7 @@
 /yap-pad
 /yap
 # Go build artifacts
+build/
 *.test
 *.out
 coverage.out

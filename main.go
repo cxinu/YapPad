@@ -1,414 +1,87 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/textarea"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	style = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("255")).
-		Background(lipgloss.Color("161")).
-		Width(60).
-		Align(lipgloss.Center)
-
-	cursorStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("111"))
-	cursorLineStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("38"))
-	promptStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("141"))
-
-	vaultDir string
-	docStyle = lipgloss.NewStyle().Margin(1, 2)
-)
-
-type keyMap struct {
-	Quit   key.Binding
-	New    key.Binding
-	List   key.Binding
-	Save   key.Binding
-	Back   key.Binding
-	Delete key.Binding
-	Rename key.Binding
-}
-
-func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.New, k.List, k.Save, k.Delete, k.Rename, k.Quit}
-}
-
-func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.New, k.List, k.Save, k.Delete},
-		{k.Rename, k.Back, k.Quit},
-	}
-}
-
-func init() {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal("Error getting home directory")
-	}
-	vaultDir = fmt.Sprintf("%s/.YapPad", homeDir)
-}
-
-type model struct {
-	keys                   keyMap
-	help                   help.Model
-	newFileInput           textinput.Model
-	createFileInputVisible bool
-	currentFile            *os.File
-	noteTextArea           textarea.Model
-	noteTextAreaVisible    bool
-	list                   list.Model
-	showingList            bool
-	renameMode             bool
-	renameTarget           string
-}
-
-type item struct {
-	title, desc string
-}
-
-func (i item) Title() string       { return i.title }
-func (i item) Description() string { return i.desc }
-func (i item) FilterValue() string { return i.title }
-
-func (m model) Init() tea.Cmd {
-	return nil
-}
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-
-	switch msg := msg.(type) {
-
-	case tea.WindowSizeMsg:
-		h, v := docStyle.GetFrameSize()
-		m.list.SetSize(msg.Width-h, msg.Height-v-5)
-
-	case tea.KeyMsg:
-
-		switch {
-
-		case key.Matches(msg, m.keys.Quit):
-			return m, tea.Quit
-
-		case key.Matches(msg, m.keys.New):
-			m.createFileInputVisible = true
-			m.showingList = false
-			m.newFileInput.Focus()
-			return m, nil
-
-		case key.Matches(msg, m.keys.Save):
-			if m.currentFile == nil {
-				break
-			}
-			if err := m.currentFile.Truncate(0); err != nil {
-				return m, nil
-			}
-			if _, err := m.currentFile.Seek(0, 0); err != nil {
-				return m, nil
-			}
-			if _, err := m.currentFile.WriteString(m.noteTextArea.Value()); err != nil {
-				return m, nil
-			}
-			m.currentFile.Close()
-			m.currentFile = nil
-			m.noteTextArea.SetValue("")
-			m.list.SetItems(listFiles())
-			m.showingList = true
-			return m, nil
-
-		case key.Matches(msg, m.keys.List):
-			m.list.SetItems(listFiles())
-			m.showingList = true
-			return m, nil
-
-		case key.Matches(msg, m.keys.Back):
-			// If in list view, go back to clean state
-			if m.showingList {
-				m.showingList = false
-				if m.currentFile != nil {
-					m.currentFile.Close()
-					m.currentFile = nil
-					m.noteTextArea.SetValue("")
-				}
-				return m, nil
-			}
-
-			// If in textarea with a file open, save and show list
-			if m.currentFile != nil {
-				if err := m.currentFile.Truncate(0); err == nil {
-					if _, err := m.currentFile.Seek(0, 0); err == nil {
-						m.currentFile.WriteString(m.noteTextArea.Value())
-					}
-				}
-				m.currentFile.Close()
-				m.currentFile = nil
-				m.noteTextArea.SetValue("")
-				m.list.SetItems(listFiles())
-				m.showingList = true
-				return m, nil
-			}
-
-			// If in file input, close it
-			m.createFileInputVisible = false
-			m.renameMode = false
-			m.newFileInput.Blur()
-			m.newFileInput.SetValue("")
-			return m, nil
-
-		case key.Matches(msg, m.keys.Delete):
-			if m.showingList {
-				selected, ok := m.list.SelectedItem().(item)
-				if ok {
-					path := filepath.Join(vaultDir, selected.title)
-					if err := os.Remove(path); err == nil {
-						m.list.SetItems(listFiles())
-					}
-				}
-			}
-			return m, nil
-
-		case key.Matches(msg, m.keys.Rename):
-			if m.showingList {
-				selected, ok := m.list.SelectedItem().(item)
-				if ok {
-					m.renameMode = true
-					m.renameTarget = selected.title
-					m.createFileInputVisible = true
-					m.showingList = false
-					m.newFileInput.SetValue(selected.title)
-					m.newFileInput.Focus()
-				}
-			}
-			return m, nil
-		}
-
-		if m.showingList {
-			// Don't handle enter if currently filtering
-			if m.list.FilterState() == list.Filtering {
-				m.list, cmd = m.list.Update(msg)
-				return m, cmd
-			}
-
-			switch msg.String() {
-			case "enter":
-				selected, ok := m.list.SelectedItem().(item)
-				if ok {
-					path := filepath.Join(vaultDir, selected.title)
-					content, err := os.ReadFile(path)
-					if err != nil {
-						return m, nil
-					}
-					m.noteTextArea.SetValue(string(content))
-					f, err := os.OpenFile(path, os.O_RDWR, 0o644)
-					if err != nil {
-						return m, nil
-					}
-					m.currentFile = f
-					m.showingList = false
-					return m, nil
-				}
-			}
-		}
-
-		if m.createFileInputVisible {
-			switch msg.String() {
-
-			case "enter":
-				filename := m.newFileInput.Value()
-				if filename == "" {
-					return m, nil
-				}
-
-				if m.renameMode {
-					oldPath := filepath.Join(vaultDir, m.renameTarget)
-					newPath := filepath.Join(vaultDir, filename)
-
-					if _, err := os.Stat(newPath); err == nil {
-						return m, nil
-					}
-
-					if err := os.Rename(oldPath, newPath); err == nil {
-						m.list.SetItems(listFiles())
-					}
-
-					m.renameMode = false
-					m.createFileInputVisible = false
-					m.newFileInput.Blur()
-					m.newFileInput.SetValue("")
-					m.showingList = true
-					return m, nil
-				}
-
-				path := fmt.Sprintf("%s/%s.md", vaultDir, filename)
-				if _, err := os.Stat(path); err == nil {
-					return m, nil
-				}
-
-				f, err := os.Create(path)
-				if err != nil {
-					return m, nil
-				}
-
-				m.currentFile = f
-				m.createFileInputVisible = false
-				m.showingList = false
-				m.newFileInput.Blur()
-				m.newFileInput.SetValue("")
-				m.noteTextArea.Focus()
-				return m, nil
-
-			case "esc":
-				m.renameMode = false
-				m.createFileInputVisible = false
-				m.newFileInput.Blur()
-				m.newFileInput.SetValue("")
-				m.showingList = true
-				return m, nil
-			}
-		}
-	}
-
-	if m.createFileInputVisible {
-		m.newFileInput, cmd = m.newFileInput.Update(msg)
-		return m, cmd
-	}
-
-	if m.showingList {
-		m.list, cmd = m.list.Update(msg)
-		return m, cmd
-	}
-
-	if m.currentFile != nil {
-		m.noteTextArea, cmd = m.noteTextArea.Update(msg)
-	}
-
-	return m, nil
-}
-
-func (m model) View() string {
-	welcome := style.Render("Welcome to YapPad twin :D")
-	view := ""
-	helpView := m.help.View(m.keys)
-
-	if m.createFileInputVisible {
-		view = m.newFileInput.View()
-	}
-	if m.currentFile != nil {
-		view = m.noteTextArea.View()
-	}
-	if m.showingList {
-		view = m.list.View()
-	}
-
-	return fmt.Sprintf("\n%s\n\n%s\n\n%s", welcome, view, helpView)
-}
-
-func initialModel() model {
-	err := os.MkdirAll(vaultDir, 0o750)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	keys := keyMap{
-		New:    key.NewBinding(key.WithKeys("ctrl+n"), key.WithHelp("ctrl+n", "new file 🗒")),
-		Quit:   key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit ⏻")),
-		List:   key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("ctrl+l", "list files ☰")),
-		Save:   key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("ctrl+s", "save ⎙")),
-		Back:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back ➜]")),
-		Delete: key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("ctrl+d", "delete ✖")),
-		Rename: key.NewBinding(key.WithKeys("ctrl+r"), key.WithHelp("ctrl+r", "rename ✎")),
-	}
-
-	ti := textinput.New()
-	ti.Placeholder = "What would you like to name the file"
-	ti.CharLimit = 156
-	ti.Width = 70
-	ti.Cursor.Style = cursorStyle
-	ti.PromptStyle = cursorLineStyle
-	ti.TextStyle = promptStyle
-
-	ta := textarea.New()
-	ta.ShowLineNumbers = false
-	ta.Placeholder = "Write your yap here"
-	ta.Focus()
-
-	noteList := listFiles()
-
-	// Create custom delegate with proper styles
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
-		Foreground(lipgloss.Color("170")).
-		BorderForeground(lipgloss.Color("170"))
-	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
-		Foreground(lipgloss.Color("243")).
-		BorderForeground(lipgloss.Color("170"))
-
-	finalList := list.New(noteList, delegate, 0, 0)
-	finalList.Title = "All Yaps"
-	finalList.SetShowStatusBar(true)
-	finalList.SetFilteringEnabled(true)
-	finalList.Styles.Title = lipgloss.NewStyle().
-		Background(lipgloss.Color("62")).
-		Foreground(lipgloss.Color("230")).
-		Padding(0, 1)
-	finalList.Styles.FilterPrompt = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("170"))
-	finalList.Styles.FilterCursor = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("170"))
-
-	helpModel := help.New()
-	helpModel.ShowAll = true // Always show full help in columns
-
-	return model{
-		keys:         keys,
-		newFileInput: ti,
-		noteTextArea: ta,
-		help:         helpModel,
-		list:         finalList,
-		showingList:  true, // Start with list view by default
-	}
-}
+var vaultDir string
+var defaultYapMode yapMode = yapAll
 
 func main() {
-	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
+	modeFlag := flag.String("mode", "all", "")
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, `YapPad — a terminal journal & note-taking app
+
+Usage:
+  yap [options] [vault-dir]
+
+Options:
+  --mode <mode>  Set default yap mode (default: all)
+                 Modes: all, daily, weekly, monthly, yearly
+
+Vault Directory:
+  Optional path to the notes directory.
+  Defaults to ~/.YapPad
+
+Keybindings:
+  ctrl+n       Create new note
+  ctrl+r       Rename selected note
+  ctrl+d       Delete selected note
+  ctrl+p       Toggle preview pane
+  ctrl+s       Cycle sort mode
+  ctrl+c       Quit
+
+  0-4          Switch yap mode (0=all, 1=daily, 2=weekly, 3=monthly, 4=yearly)
+  tab          Cycle yap mode while creating a note
+  enter        Open selected note in editor
+  /            Filter notes
+
+Examples:
+  yap                        Open default vault in "all" mode
+  yap --mode daily           Open in daily journal mode
+  yap --mode weekly ~/notes  Open ~/notes in weekly mode
+`)
+	}
+
+	flag.Parse()
+
+	switch strings.ToLower(*modeFlag) {
+	case "all", "0":
+		defaultYapMode = yapAll
+	case "daily", "1":
+		defaultYapMode = yapDaily
+	case "weekly", "2":
+		defaultYapMode = yapWeekly
+	case "monthly", "3":
+		defaultYapMode = yapMonthly
+	case "yearly", "4":
+		defaultYapMode = yapYearly
+	default:
+		log.Fatalf("unknown mode: %s (use all, daily, weekly, monthly, yearly)", *modeFlag)
+	}
+
+	if flag.NArg() > 0 {
+		vaultDir = flag.Arg(0)
+	} else {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatal(err)
+		}
+		vaultDir = filepath.Join(home, ".YapPad")
+	}
+
+	p := tea.NewProgram(initialModel(), tea.WithAltScreen(), tea.WithMouseAllMotion())
+
 	if _, err := p.Run(); err != nil {
-		fmt.Printf("Error: %v", err)
+		fmt.Println("error:", err)
 		os.Exit(1)
 	}
-}
-
-func listFiles() []list.Item {
-	items := make([]list.Item, 0)
-	entries, err := os.ReadDir(vaultDir)
-	if err != nil {
-		log.Fatal("Error reading notes")
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			info, err := entry.Info()
-			if err != nil {
-				continue
-			}
-
-			modTime := info.ModTime().Format("2006-01-02 15:04:05")
-			items = append(items, item{
-				title: entry.Name(),
-				desc:  fmt.Sprintf("Modified: %s", modTime),
-			})
-		}
-	}
-	return items
 }
