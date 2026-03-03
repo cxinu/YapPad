@@ -371,6 +371,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.CycleSort):
 			m.sortMode = (m.sortMode + 1) % 6
 			m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+			m.selectedFile = ""
+			if m.list.SelectedItem() != nil && m.showPreview {
+				i := m.list.SelectedItem().(item)
+				m.selectedFile = i.title
+				return m, m.loadFileOrImage(m.resolveFilePath(i.title))
+			}
 			return m, nil
 
 		case key.Matches(msg, m.keys.ToggleHelpMenu):
