@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -131,6 +132,15 @@ func openInEditor(path, editor string) tea.Cmd {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		return fileEditedMsg{err: err}
+	})
+}
+
+// NOTE: Open Image viewer
+func openImageViewer(path string) tea.Cmd {
+	viewer := cmp.Or(os.Getenv("IMAGE_VIEWER"), "xdg-open")
+	c := exec.Command(viewer, path)
+	return tea.ExecProcess(c, func(err error) tea.Msg {
 		return fileEditedMsg{err: err}
 	})
 }

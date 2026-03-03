@@ -404,6 +404,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if it, ok := m.list.SelectedItem().(item); ok {
 				path := m.resolveFilePath(it.title)
+				if isImageFile(path) {
+					return m, openImageViewer(path)
+				}
 				return m, openInEditor(path, m.editor)
 			}
 
