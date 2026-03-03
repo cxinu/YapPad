@@ -9,7 +9,12 @@ A terminal-based note-taking and journaling app built with Go and Bubble Tea.
 
 https://github.com/user-attachments/assets/353620d4-dcfe-40d5-ada4-224adad019ad
 
-### Image rendering
+## Notes Preivew and Image rendering
+
+
+<img width="1450" height="772" alt="260303_18h41m00s_screenshot" src="https://github.com/user-attachments/assets/bd14854d-c6b0-4f3a-8f1b-a4360bdf7a03" />
+
+
 <img width="1289" height="817" alt="YapPad image rendering" src="https://github.com/user-attachments/assets/93507e04-aa27-43e4-adde-02299d89090a" />
 
 

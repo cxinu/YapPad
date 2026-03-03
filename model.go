@@ -35,11 +35,12 @@ type model struct {
 	sortMode          sortMode
 	deleting          bool
 	yapMode           yapMode
+	editor            string
 }
 
 func (m model) Init() tea.Cmd { return nil }
 
-func initialModel() model {
+func initialModel(editor string) model {
 	listKeys := newListKeyMap()
 
 	if err := os.MkdirAll(vaultDir, 0o755); err != nil {
@@ -87,6 +88,7 @@ func initialModel() model {
 		showPreview: true,
 		sortMode:    sortModifiedDesc,
 		yapMode:     defaultMode,
+		editor:      editor,
 	}
 }
 

@@ -18,7 +18,7 @@ var (
 
 func main() {
 	modeFlag := flag.String("mode", "all", "")
-
+	editorFlag := flag.String("editor", "", "editor to use: nano, nvim, or inbuilt")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `YapPad — a terminal journal & note-taking app
 
@@ -28,6 +28,8 @@ Usage:
 Options:
   --mode <mode>  Set default yap mode (default: all)
                  Modes: all, daily, weekly, monthly, yearly
+
+  --editor <editor name> Run with nvim or nano
 
 Vault Directory:
   Optional path to the notes directory.
@@ -79,8 +81,7 @@ Examples:
 		vaultDir = filepath.Join(home, ".YapPad")
 	}
 
-	p := tea.NewProgram(initialModel(), tea.WithAltScreen(), tea.WithMouseAllMotion())
-
+	p := tea.NewProgram(initialModel(*editorFlag), tea.WithAltScreen(), tea.WithMouseAllMotion())
 	if _, err := p.Run(); err != nil {
 		fmt.Println("error:", err)
 		os.Exit(1)

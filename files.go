@@ -115,12 +115,21 @@ func getEditor() string {
 	return "nvim"
 }
 
-func openInEditor(path string) tea.Cmd {
-	cmd := exec.Command(getEditor(), path)
+func openInEditor(path, editor string) tea.Cmd {
+	var e string
+	switch editor {
+	case "nano":
+		e = "nano"
+	case "nvim":
+		e = "nvim"
+	default:
+		e = getEditor()
+	}
+
+	cmd := exec.Command(e, path)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		return fileEditedMsg{err: err}
 	})

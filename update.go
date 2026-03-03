@@ -266,7 +266,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.input.SetValue("")
 				m.descInput.SetValue("")
 				m.input.Focus()
-				return m, openInEditor(path)
+				return m, openInEditor(path, m.editor)
 
 			case "esc":
 				m.inputMode = false
@@ -385,7 +385,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if it, ok := m.list.SelectedItem().(item); ok {
 				path := m.resolveFilePath(it.title)
-				return m, openInEditor(path)
+				return m, openInEditor(path, m.editor)
 			}
 
 		case msg.String() == "0" && m.list.FilterState() != list.Filtering:
