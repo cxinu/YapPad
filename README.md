@@ -7,7 +7,9 @@ A terminal-based note-taking and journaling app built with Go and Bubble Tea.
 ## Showcase
 
 
-https://github.com/user-attachments/assets/353620d4-dcfe-40d5-ada4-224adad019ad
+https://github.com/user-attachments/assets/c601849c-5179-4787-9b64-93ca44c7f397
+
+
 
 ## Notes Preivew and Image rendering
 
