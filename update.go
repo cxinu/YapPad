@@ -147,6 +147,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case fileEditedMsg:
 		m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+		m.viewport.SetContent("")
 		if m.selectedFile != "" && m.showPreview {
 			return m, tea.Batch(tea.EnableMouseAllMotion, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 		}

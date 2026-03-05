@@ -17,6 +17,12 @@ import (
 	"github.com/alecthomas/chroma/v2/quick"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/glamour"
+)
+
+var glamourRenderer, _ = glamour.NewTermRenderer(
+	glamour.WithAutoStyle(),
+	glamour.WithWordWrap(0),
 )
 
 // isImageFile checks if a file is an image by extension or content detection.
@@ -82,16 +88,13 @@ func readFile(path string) tea.Cmd {
 			return fileLoadedMsg{content: "Error reading file"}
 		}
 
-		// Check extension first to bypass flaky http.DetectContentType
 		ext := strings.ToLower(filepath.Ext(path))
 		switch ext {
 		case ".md", ".markdown", ".txt", ".go", ".c", ".cpp", ".h", ".py", ".js", ".ts", ".html", ".css", ".json", ".yaml", ".yml", ".toml", ".sh", ".mod", ".sum":
-			// Known text — skip binary detection
 		default:
 			buffer := make([]byte, 512)
 			copy(buffer, content)
 			contentType := http.DetectContentType(buffer)
-
 			if strings.HasPrefix(contentType, "audio/") ||
 				strings.HasPrefix(contentType, "video/") ||
 				contentType == "application/octet-stream" {
@@ -99,12 +102,19 @@ func readFile(path string) tea.Cmd {
 			}
 		}
 
+		if ext == ".md" || ext == ".markdown" {
+			rendered, err := glamourRenderer.Render(string(content))
+			if err != nil {
+				return fileLoadedMsg{content: string(content)}
+			}
+			return fileLoadedMsg{content: rendered}
+		}
+
 		var buf bytes.Buffer
 		err = quick.Highlight(&buf, string(content), "markdown", "terminal256", "monokai")
 		if err != nil {
 			return fileLoadedMsg{content: string(content)}
 		}
-
 		return fileLoadedMsg{content: buf.String()}
 	}
 }
