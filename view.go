@@ -80,9 +80,23 @@ func (m model) View() string {
 	header := lipgloss.JoinHorizontal(lipgloss.Center, title, modeStatus, sortStatus)
 
 	if m.deleting {
+		if m.showPreview {
+			var previewView string
+			if m.showingImage {
+				previewView = m.viewport.View()
+			} else {
+				previewView = fmt.Sprintf("%s\n%s\n%s", m.previewHeader(), m.viewport.View(), m.previewFooter())
+			}
+			return fmt.Sprintf(
+				"\n%s\n\n  Are you sure you want to delete this file? (y/n)\n\n%s",
+				header,
+				lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), "  ", previewView),
+			)
+		}
 		return fmt.Sprintf(
-			"\n%s\n\n  Are you sure you want to delete this file? (y/n)\n",
+			"\n%s\n\n  Are you sure you want to delete this file? (y/n)\n\n%s\n",
 			header,
+			m.list.View(),
 		)
 	}
 
@@ -98,17 +112,18 @@ func (m model) View() string {
 	if m.inputMode {
 		if m.inputStep == 0 {
 			return fmt.Sprintf(
-				"\n%s\n\n%s\n\n%s",
+				"\n%s\n\n  File Name %s\n\n%s",
 				header,
 				m.input.View(),
 				m.list.View(),
 			)
 		}
 		return fmt.Sprintf(
-			"\n%s\n\nFilename: %s\nDescription: %s",
+			"\n%s\n\n%s\n%s\n\n%s",
 			header,
-			m.input.Value(),
+			m.input.View(),
 			m.descInput.View(),
+			m.list.View(),
 		)
 	}
 
