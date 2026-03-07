@@ -59,21 +59,35 @@ func clearKittyGraphics() tea.Cmd {
 // writes it directly to stdout at a specific cell offset. The output is
 // captured first to prevent chafa's own cursor movements from wrecking
 // the Bubble Tea TUI.
+var imageCache = map[string][]byte{}
+
 func renderImage(path string, cols, rows, xOffset, yOffset int) tea.Cmd {
 	return func() tea.Msg {
+		key := fmt.Sprintf("%s-%dx%d", path, cols, rows)
+
+		if cached, ok := imageCache[key]; ok {
+			var buf bytes.Buffer
+			buf.WriteString("\x1b[s")
+			buf.WriteString(fmt.Sprintf("\x1b[%d;%dH", yOffset, xOffset))
+			buf.Write(cached)
+			buf.WriteString("\x1b[u")
+			os.Stdout.Write(buf.Bytes())
+			return imageRenderedMsg{}
+		}
+
 		cmd := exec.Command("chafa", "-f", "kitty", "-s", fmt.Sprintf("%dx%d", cols, rows), path)
 		output, err := cmd.Output()
 		if err != nil {
 			return imageRenderedMsg{}
 		}
-		// Save cursor, move to preview pane origin, write image, restore cursor.
-		// All written as a single os.Stdout.Write to minimize interference
-		// with Bubble Tea's rendering loop.
+
+		imageCache[key] = output
+
 		var buf bytes.Buffer
-		buf.WriteString("\x1b[s")                                     // save cursor
-		buf.WriteString(fmt.Sprintf("\x1b[%d;%dH", yOffset, xOffset)) // move to preview pane
-		buf.Write(output)                                             // kitty escape sequence
-		buf.WriteString("\x1b[u")                                     // restore cursor
+		buf.WriteString("\x1b[s")
+		buf.WriteString(fmt.Sprintf("\x1b[%d;%dH", yOffset, xOffset))
+		buf.Write(output)
+		buf.WriteString("\x1b[u")
 		os.Stdout.Write(buf.Bytes())
 		return imageRenderedMsg{}
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/reflow/wordwrap"
@@ -60,7 +61,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				i := m.list.SelectedItem().(item)
 				m.selectedFile = i.title
 				if m.showPreview {
-					return m, tea.Batch(clearCmd, m.loadFileOrImage(m.resolveFilePath(i.title)))
+					m.loadingFile = true
+					return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(i.title)))
 				}
 			}
 		} else {
@@ -73,18 +75,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if isImageFile(m.resolveFilePath(i.title)) {
 						m.showingImage = true
 					}
-					return m, tea.Batch(clearCmd, m.loadFileOrImage(m.resolveFilePath(i.title)))
+					m.loadingFile = true
+					return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(i.title)))
 				}
 			} else if m.showPreview && m.selectedFile != "" {
 				if isImageFile(m.resolveFilePath(m.selectedFile)) {
 					m.showingImage = true
 				}
-				return m, tea.Batch(clearCmd, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+				m.loadingFile = true
+				return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 			}
 		}
 		return m, clearCmd
 
+	case spinner.TickMsg:
+		if m.loadingFile {
+			m.spinner, cmd = m.spinner.Update(msg)
+			return m, cmd
+		}
+
 	case fileLoadedMsg:
+		m.loadingFile = false
 		m.showingImage = false
 		wrapped := wordwrap.String(msg.content, m.viewport.Width)
 		m.viewport.SetContent(wrapped)
@@ -100,6 +111,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case imageRenderedMsg:
 		// Image was drawn directly to stdout as overlay.
+		m.loadingFile = false
 		m.showingImage = true
 
 	case tea.MouseMsg:
@@ -128,7 +140,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if i.title != m.selectedFile {
 					m.selectedFile = i.title
 					path := m.resolveFilePath(i.title)
-					return m, m.loadFileOrImage(path)
+					m.loadingFile = true
+					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(path))
 				}
 			}
 		} else if m.showPreview && msg.X > listWidth {
@@ -149,7 +162,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 		m.viewport.SetContent("")
 		if m.selectedFile != "" && m.showPreview {
-			return m, tea.Batch(tea.EnableMouseAllMotion, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+			m.loadingFile = true
+			return m, tea.Batch(tea.EnableMouseAllMotion, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 		}
 		return m, tea.EnableMouseAllMotion
 
@@ -165,7 +179,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.editorContent.Blur()
 				m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 				if m.showPreview {
-					return m, m.loadFileOrImage(m.resolveFilePath(m.selectedFile))
+					m.loadingFile = true
+					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 				}
 				return m, nil
 			}
@@ -369,6 +384,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			return m, cmd
 		}
+
 		// NORMAL MODE
 		switch {
 
@@ -405,7 +421,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.list.SelectedItem() != nil && m.showPreview {
 				i := m.list.SelectedItem().(item)
 				m.selectedFile = i.title
-				return m, m.loadFileOrImage(m.resolveFilePath(i.title))
+				m.loadingFile = true
+				return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(i.title)))
 			}
 			return m, nil
 
@@ -429,7 +446,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if isImageFile(m.resolveFilePath(m.selectedFile)) {
 					m.showingImage = true
 				}
-				return m, tea.Batch(resizeCmd, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+				m.loadingFile = true
+				return m, tea.Batch(resizeCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 			}
 
 			return m, resizeCmd
@@ -477,7 +495,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if i.title != m.selectedFile {
 			m.selectedFile = i.title
 			if m.showPreview {
-				cmdRead = m.loadFileOrImage(m.resolveFilePath(i.title))
+				m.loadingFile = true
+				cmdRead = tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(i.title)))
 			}
 		}
 	}

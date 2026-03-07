@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -40,6 +41,8 @@ type model struct {
 	editorMode        bool
 	editorFile        string
 	editorContent     textarea.Model
+	spinner           spinner.Model
+	loadingFile       bool
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -83,10 +86,15 @@ func initialModel(editor string) model {
 	di.CharLimit = 128
 	di.Width = 40
 
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("62"))
+
 	return model{
 		list:        l,
 		input:       ti,
 		descInput:   di,
+		spinner:     s,
 		keys:        listKeys,
 		viewport:    viewport.New(0, 0),
 		showPreview: true,

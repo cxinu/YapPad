@@ -129,12 +129,13 @@ func (m model) View() string {
 
 	if m.showPreview {
 		var previewView string
-		if m.showingImage {
+		if m.loadingFile {
+			previewView = fmt.Sprintf("%s\n\n  %s Loading...", m.previewHeader(), m.spinner.View())
+		} else if m.showingImage {
 			previewView = m.viewport.View()
 		} else {
 			previewView = fmt.Sprintf("%s\n%s\n%s", m.previewHeader(), m.viewport.View(), m.previewFooter())
 		}
-
 		return fmt.Sprintf(
 			"\n%s\n\n%s",
 			header,
