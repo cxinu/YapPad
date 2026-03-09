@@ -1,3 +1,8 @@
+/*
+ NOTE:
+all state transitions and event handling. The entire Update function — keyboard input, mouse, window resize, file loading messages, editor mode, input mode, delete confirmation, sort, preview toggle.
+*/
+
 package main
 
 import (

@@ -1,9 +1,10 @@
-// NOTE: For the inbuilt text area component
+// NOTE: This file is for the inbuilt text area component
 
 package main
 
 import (
 	"os"
+	"os/exec"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
@@ -39,4 +40,31 @@ func saveEditorContent(path, content string) tea.Cmd {
 		}
 		return editorSavedMsg{}
 	}
+}
+
+func getEditor() string {
+	if e := os.Getenv("EDITOR"); e != "" {
+		return e
+	}
+	return "nvim"
+}
+
+func openInEditor(path, editor string) tea.Cmd {
+	var e string
+	switch editor {
+	case "nano":
+		e = "nano"
+	case "nvim":
+		e = "nvim"
+	default:
+		e = getEditor()
+	}
+
+	cmd := exec.Command(e, path)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		return fileEditedMsg{err: err}
+	})
 }

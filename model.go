@@ -1,3 +1,7 @@
+/*
+NOTE:
+Defines the model struct with all state, initialModel constructor, Init, loadFileOrImage, switchYapMode, and resolveFilePath
+*/
 package main
 
 import (
@@ -104,8 +108,7 @@ func initialModel(editor string) model {
 	}
 }
 
-// loadFileOrImage determines if a file is an image or text and dispatches
-// to the appropriate handler.
+// NOTE: loadFileOrImage determines if a file is an image or text and dispatches to the appropriate handler.
 func (m model) loadFileOrImage(path string) tea.Cmd {
 	if isImageFile(path) {
 		// Account for: left panel width + separator + border
@@ -113,7 +116,7 @@ func (m model) loadFileOrImage(path string) tea.Cmd {
 		xOffset := listWidth + 4 + 1
 
 		// Account for: header height + border
-		yOffset := 4 + 1
+		yOffset := 4 + 3
 
 		// Shrink cols/rows to fit inside the border
 		cols := m.viewport.Width - 2
@@ -132,8 +135,7 @@ func (m model) loadFileOrImage(path string) tea.Cmd {
 	)
 }
 
-// switchYapMode changes the yap mode, refreshes the list, and loads the
-// first item's preview (or clears the viewport if the list is empty).
+// NOTE: switchYapMode changes the yap mode, refreshes the list, and loads the first item's preview (or clears the viewport if the list is empty).
 func (m model) switchYapMode(mode yapMode) (tea.Model, tea.Cmd) {
 	m.yapMode = mode
 	m.list.SetItems(listFiles(m.sortMode, m.yapMode))
@@ -149,7 +151,7 @@ func (m model) switchYapMode(mode yapMode) (tea.Model, tea.Cmd) {
 	return m, clearKittyGraphics()
 }
 
-// resolveFilePath resolves the full path for a file given its display title.
+// NOTE: resolveFilePath resolves the full path for a file given its display title.
 func (m model) resolveFilePath(title string) string {
 	if m.yapMode == yapAll {
 		return filepath.Join(vaultDir, title)

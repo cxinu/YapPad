@@ -1,3 +1,5 @@
+// NOTE: Only for Disk operations and Image rendering logic
+
 package main
 
 import (
@@ -55,10 +57,14 @@ func clearKittyGraphics() tea.Cmd {
 	}
 }
 
-// renderImage uses chafa to generate a Kitty image escape sequence, then
-// writes it directly to stdout at a specific cell offset. The output is
-// captured first to prevent chafa's own cursor movements from wrecking
-// the Bubble Tea TUI.
+/*
+	NOTE:
+
+renderImage uses chafa to generate a Kitty image escape sequence, then
+writes it directly to stdout at a specific cell offset. The output is
+captured first to prevent chafa's own cursor movements from wrecking
+the Bubble Tea TUI.
+*/
 var imageCache = map[string][]byte{}
 
 func renderImage(path string, cols, rows, xOffset, yOffset int) tea.Cmd {
@@ -93,8 +99,12 @@ func renderImage(path string, cols, rows, xOffset, yOffset int) tea.Cmd {
 	}
 }
 
-// readFile loads text file content with syntax highlighting.
-// Images are NOT handled here — they use renderImage() instead.
+/*
+	NOTE:
+
+readFile loads text file content with syntax highlighting.
+Images are NOT handled here — they use renderImage() instead.
+*/
 func readFile(path string) tea.Cmd {
 	return func() tea.Msg {
 		content, err := os.ReadFile(path)
@@ -131,33 +141,6 @@ func readFile(path string) tea.Cmd {
 		}
 		return fileLoadedMsg{content: buf.String()}
 	}
-}
-
-func getEditor() string {
-	if e := os.Getenv("EDITOR"); e != "" {
-		return e
-	}
-	return "nvim"
-}
-
-func openInEditor(path, editor string) tea.Cmd {
-	var e string
-	switch editor {
-	case "nano":
-		e = "nano"
-	case "nvim":
-		e = "nvim"
-	default:
-		e = getEditor()
-	}
-
-	cmd := exec.Command(e, path)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return tea.ExecProcess(cmd, func(err error) tea.Msg {
-		return fileEditedMsg{err: err}
-	})
 }
 
 // NOTE: Open Image viewer

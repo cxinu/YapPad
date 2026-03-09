@@ -1,3 +1,10 @@
+/*
+NOTE:
+This is the entry point and deals with
+CLI flag parsing (--mode, --editor, --theme, --version),
+sets up vault directory
+and launches the Bubble Tea program.
+*/
 package main
 
 import (
