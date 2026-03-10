@@ -19,6 +19,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/glamour/styles"
 )
 
 var (
@@ -27,8 +28,12 @@ var (
 )
 
 func init() {
+	style := styles.DarkStyleConfig
+	margin := uint(0)
+	style.Document.Margin = &margin
+
 	glamourRenderer, _ = glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
+		glamour.WithStyles(style),
 		glamour.WithWordWrap(0),
 	)
 }
