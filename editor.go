@@ -40,24 +40,12 @@ func saveEditorContent(path, content string) tea.Cmd {
 	}
 }
 
-func getEditor() string {
-	if e := os.Getenv("EDITOR"); e != "" {
-		return e
-	}
-	return "nvim"
-}
-
 func openInEditor(path, editor string) tea.Cmd {
-	var e string
-	switch editor {
-	case "nano":
-		e = "nano"
-	case "nvim":
-		e = "nvim"
-	default:
-		e = getEditor()
+	e := os.Getenv("EDITOR")
+	if e == "" {
+		e = editor
 	}
-
+	
 	cmd := exec.Command(e, path)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
